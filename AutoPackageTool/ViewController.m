@@ -8,6 +8,10 @@
 
 #import "ViewController.h"
 #import <AFNetworking.h>
+#import "CustomView.h"
+
+#define weakObj(self) __weak typeof(self) weak_##self = self;
+#define strongObj(self) __strong typeof(self) strong_##self = self;
 
 @interface ViewController ()
 {
@@ -17,10 +21,13 @@
 
 /** 项目路径 */
 @property (weak) IBOutlet NSTextField *projectPath;
+/** ipa导出路径 */
+@property (weak) IBOutlet NSTextField *exportPath;
 /** 工程名称 */
 @property (weak) IBOutlet NSTextField *projectName;
 @property (weak) IBOutlet NSTextField *schemeName;
 @property (weak) IBOutlet NSButton *startButton;
+@property (weak) IBOutlet NSButton *stopButton;
 @property (weak) IBOutlet NSPopUpButton *popUpButton;
 /** 测试平台 */
 @property (weak) IBOutlet NSPopUpButton *testPlatform;
@@ -30,11 +37,14 @@
 @property (weak) IBOutlet NSTextField *firToken;
 
 @property (unsafe_unretained) IBOutlet NSTextView *textView;
+@property (weak) IBOutlet NSView *contentView;
+@property (nonatomic, strong) CustomView *maskView;
 
 @property (nonatomic, copy) NSString *archivePath;
 @end
 
 @implementation ViewController
+
 - (void)dataCache {
     NSMutableDictionary *dic = @{}.mutableCopy;
     [dic setObject:self.projectPath.stringValue ? : @"" forKey:@"projectPath"];
@@ -62,16 +72,33 @@
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
-
+- (void)viewWillLayout
+{
+    [super viewWillLayout];
+    self.maskView.frame = self.contentView.bounds;
+}
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    self.exportPath.stringValue = NSSearchPathForDirectoriesInDomains(NSDesktopDirectory, NSUserDomainMask, YES).firstObject;
+
+    self.maskView = [[CustomView alloc] init];
+    [self.contentView addSubview:self.maskView];
+    [self.maskView setHidden:YES];
+
     [self readCacheData];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textDidChange:) name:NSControlTextDidChangeNotification object:self.projectPath];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(dataCache) name:NSApplicationWillTerminateNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fileHandleReadCompletionNotification:) name:NSFileHandleReadCompletionNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fileHandleReadCompletion:) name:NSFileHandleReadToEndOfFileCompletionNotification object:nil];
+    [self.startButton addObserver:self forKeyPath:@"enabled" options:NSKeyValueObservingOptionNew context:nil];
+}
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context
+{
+    if ([object isEqual:self.startButton]) {
+        self.stopButton.enabled = !self.startButton.enabled;
+    }
 }
 - (void)textDidChange:(NSNotification *)notification {
     if ([notification.object isEqual:self.projectPath]) {
@@ -100,47 +127,68 @@
         [self projectPathDidChange];
     }
 }
-- (NSString *)exportPath {
-    NSString *exportPath = [self.projectPath.stringValue stringByAppendingPathComponent:@"package"];
-    return exportPath;
+- (IBAction)selectpExportPath:(NSButton *)sender {
+    NSOpenPanel *openPanel = [[NSOpenPanel alloc] init];
+    openPanel.canChooseFiles = false;
+    openPanel.canChooseDirectories = true;
+    openPanel.allowsMultipleSelection = false;
+    openPanel.allowsOtherFileTypes = false;
+    if ([openPanel runModal] == NSModalResponseOK) {
+        NSString *path = [openPanel.URLs.firstObject path];
+        self.exportPath.stringValue = path;
+    }
 }
 - (NSString *)ipaPath {
-    NSString *ipaPath = [self.exportPath stringByAppendingPathComponent:self.schemeName.stringValue];
+    NSString *ipaPath = [[self.exportPath.stringValue stringByAppendingPathComponent:self.schemeName.stringValue] stringByAppendingPathComponent:self.schemeName.stringValue];
     return [ipaPath stringByAppendingPathExtension:@"ipa"];
 }
 - (NSDictionary *)infoDictionary {
-    NSString *infoPath = [self.exportPath stringByAppendingPathComponent:@"Info"];
+    NSString *infoPath = [self.projectPath.stringValue stringByAppendingPathComponent:@"Info"];
     infoPath = [infoPath stringByAppendingPathExtension:@"plist"];
     return [NSDictionary dictionaryWithContentsOfFile:infoPath];
 }
 - (NSString *)bundleId {
     return [self.infoDictionary objectForKey:@"CFBundleIdentifier"];
 }
+- (IBAction)clickStopButton:(NSButton *)sender {
+    weakObj(self)
+    [_task setTerminationHandler:^(NSTask * task) {
+        [weak_self updateTextViewByText:@"已停止！！！"];
+    }];
+    [_task terminate];
+}
 
 
 - (IBAction)clickStartButton:(NSButton *)sender {
-    if (![self checkProjectPath]) return;
+    if (![self checkPath]) return;
+//    取消任意输入框的输入状态
+    [[NSApplication sharedApplication].mainWindow makeFirstResponder:self];
     sender.enabled = NO;
-    
+    [self.maskView setHidden:NO];
+    self.textView.string = @"";
     [self configArchivePath];
     [[self xcodeBuildProject] setTerminationHandler:^(NSTask * task) {
-        if (task.terminationStatus == 0) {
-            [[self exportIpa] setTerminationHandler:^(NSTask * task) {
-                if (task.terminationStatus == 0) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self uploadToTesPlatform];
-                    });
-                } else {
-                    [self updateTextViewByText:@"导出失败！！！"];
-                }
-            }];
-        } else {
-            [self updateTextViewByText:@"构建失败！！！"];
-        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (task.terminationStatus == 0) {
+                [self exportIpa];
+            } else {
+                [self updateTextViewByText:@"构建失败！！！"];
+            }
+        });
     }];
 }
-/** 检查项目路径 */
-- (BOOL)checkProjectPath {
+/** 检查路径 */
+- (BOOL)checkPath {
+    if (self.schemeName.stringValue.length == 0) {
+        [self showAlertWithTitle:@"温馨提示" message:@"请输入scheme Name"];
+        return NO;
+    } else if (self.projectName.stringValue.length == 0) {
+        [self showAlertWithTitle:@"温馨提示" message:@"请输入project Name"];
+        return NO;
+    } else if (self.exportPath.stringValue.length == 0) {
+        [self showAlertWithTitle:@"温馨提示" message:@"请选择export Path"];
+        return NO;
+    }
     NSString *xcworkspacePath = [[self.projectPath.stringValue stringByAppendingPathComponent:self.projectName.stringValue] stringByAppendingPathExtension:@"xcworkspace"];
     NSString *xcodeprojPath = [[self.projectPath.stringValue stringByAppendingPathComponent:self.projectName.stringValue] stringByAppendingPathExtension:@"xcodeproj"];
     self.isWorkspace = [[NSFileManager defaultManager] fileExistsAtPath:xcworkspacePath];
@@ -179,13 +227,6 @@
 /** 编译项目 */
 - (NSTask *)xcodeBuildProject
 {
-    if (self.schemeName.stringValue.length == 0) {
-        [self showAlertWithTitle:@"温馨提示" message:@"请选择正确的project Path"];
-        return nil;
-    } else if (self.projectName.stringValue.length == 0) {
-        [self showAlertWithTitle:@"温馨提示" message:@"请选择正确的project Path"];
-        return nil;
-    }
     [self updateTextViewByText:@"开始构建。。。"];
     //切到项目目录
     NSString *cd = [NSString stringWithFormat:@"cd %@",self.projectPath.stringValue];
@@ -212,9 +253,8 @@
     return [self runSystemCommand:shell1];
 }
 /** 导出ipa */
-- (NSTask *)exportIpa {
+- (void)exportIpa {
     [self updateTextViewByText:@"导出ipa。。。"];
-    NSString *exportPath = [self.projectPath.stringValue stringByAppendingPathComponent:@"package"];
     NSString *exportOptionsPlist = [self.projectPath.stringValue stringByAppendingPathComponent:@"ExportOptions.plist"];
     // 先删除export_options_plist文件
     if ([[NSFileManager defaultManager] fileExistsAtPath:exportOptionsPlist]) {
@@ -228,8 +268,20 @@
                                -archivePath %@ \
                                -exportPath %@ \
                                -exportOptionsPlist %@ \
-                               -allowProvisioningUpdates",self.archivePath, exportPath,exportOptionsPlist];
-    return [self runSystemCommand:[NSString stringWithFormat:@"%@ \n%@",configPlist, exportArchive]];
+                               -allowProvisioningUpdates",self.archivePath, [self.exportPath.stringValue stringByAppendingPathComponent:self.schemeName.stringValue],exportOptionsPlist];
+    [[self runSystemCommand:[NSString stringWithFormat:@"%@ \n%@",configPlist, exportArchive]]setTerminationHandler:^(NSTask * task) {
+        // 删除临时export_options_plist文件
+        if ([[NSFileManager defaultManager] fileExistsAtPath:exportOptionsPlist]) {
+            [[NSFileManager defaultManager] removeItemAtPath:exportOptionsPlist error:nil];
+        }
+        if (task.terminationStatus == 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self uploadToTesPlatform];
+            });
+        } else {
+            [self updateTextViewByText:@"导出失败！！！"];
+        }
+    }];
 }
 /** 上传到测试平台 */
 - (void)uploadToTesPlatform {
@@ -269,7 +321,7 @@
 /** 上传到fir */
 - (NSTask *)uploadToFir {
     [self updateTextViewByText:@"上传到fir。。。"];
-    NSString *uploadToFir = [NSString stringWithFormat:@"fir p %@ -T %@",self.ipaPath,self.firToken.stringValue];
+    NSString *uploadToFir = [NSString stringWithFormat:@"fir p %@ -T %@ -c'%@'",self.ipaPath,self.firToken.stringValue,@"无"];
     return [self runSystemCommand:uploadToFir];
 }
 
@@ -278,6 +330,7 @@
 {
     NSLog(@"命令------->%@",cmd);
     dispatch_async(dispatch_get_main_queue(), ^{
+        [self.maskView setHidden:NO];
         self.startButton.enabled = NO;
     });
     NSTask *task = [[NSTask alloc] init];
@@ -303,26 +356,29 @@
 }
 
 - (void)fileHandleReadCompletionNotification:(NSNotification *)not {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        NSData * data = [not.userInfo valueForKey:NSFileHandleNotificationDataItem];
-        NSObject *ob = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:nil];
-        if (!ob) {
-            ob = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-        }
-        [self updateTextViewByText:ob.description];
-        if (data.length || self->_task.isRunning) {
-            [not.object readInBackgroundAndNotify];
-        } else if (!self->_task.isRunning) {
-            self.startButton.enabled = YES;
-        }
-    });
+    NSData * data = [not.userInfo valueForKey:NSFileHandleNotificationDataItem];
+    NSObject *ob = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:nil];
+    if (!ob) {
+        ob = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    }
+    [self updateTextViewByText:ob.description];
+    if (data.length || self->_task.isRunning) {
+        [not.object readInBackgroundAndNotify];
+    } else if (!self->_task.isRunning) {
+        self.startButton.enabled = YES;
+        [self.maskView setHidden:YES];
+        [self->_task terminate];
+        self->_task = nil;
+    }
 }
 
 - (void)updateTextViewByText:(NSString *)text {
+    if (text.length == 0) return;
     dispatch_async(dispatch_get_main_queue(), ^{
+        self.textView.layoutManager.allowsNonContiguousLayout = NO;
         NSScrollView *scrollView = [self.textView enclosingScrollView];
         bool scrollToEnd = [self.textView visibleRect].origin.y == CGRectGetHeight(self.textView.frame) - CGRectGetHeight(scrollView.frame);
-        self.textView.string = [self.textView.string stringByAppendingFormat:@"\n%@",text];
+        [[[self.textView textStorage] mutableString] appendString:[NSString stringWithFormat:@"\n%@",text]];
         if (scrollToEnd) {
             [self.textView scrollRangeToVisible:NSMakeRange(self.textView.string.length, 1)];
         }

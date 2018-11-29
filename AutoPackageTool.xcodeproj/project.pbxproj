@@ -16,6 +16,8 @@
 		A5963745219EA4F000CDB4EC /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = A5963744219EA4F000CDB4EC /* main.m */; };
 		A5963750219EA4F000CDB4EC /* AutoPackageToolTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A596374F219EA4F000CDB4EC /* AutoPackageToolTests.m */; };
 		A596375B219EA4F000CDB4EC /* AutoPackageToolUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = A596375A219EA4F000CDB4EC /* AutoPackageToolUITests.m */; };
+		A5E833AD21ABA68C0075C8E6 /* CustomView.m in Sources */ = {isa = PBXBuildFile; fileRef = A5E833AC21ABA68C0075C8E6 /* CustomView.m */; };
+		A5E833B021ABE0F40075C8E6 /* MBProgressHUD.m in Sources */ = {isa = PBXBuildFile; fileRef = A5E833AE21ABE0F40075C8E6 /* MBProgressHUD.m */; };
 		C62466DEF57DACD621D6917E /* libPods-AutoPackageTool.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C50CC2746037FAA0EA69A064 /* libPods-AutoPackageTool.a */; };
 /* End PBXBuildFile section */
 
@@ -58,6 +60,10 @@
 		A5963756219EA4F000CDB4EC /* AutoPackageToolUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AutoPackageToolUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A596375A219EA4F000CDB4EC /* AutoPackageToolUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AutoPackageToolUITests.m; sourceTree = "<group>"; };
 		A596375C219EA4F000CDB4EC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A5E833AB21ABA68C0075C8E6 /* CustomView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CustomView.h; sourceTree = "<group>"; };
+		A5E833AC21ABA68C0075C8E6 /* CustomView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CustomView.m; sourceTree = "<group>"; };
+		A5E833AE21ABE0F40075C8E6 /* MBProgressHUD.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MBProgressHUD.m; sourceTree = "<group>"; };
+		A5E833AF21ABE0F40075C8E6 /* MBProgressHUD.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MBProgressHUD.h; sourceTree = "<group>"; };
 		ADF5D92F0D8F07157DC80795 /* libPods-AutoPackageToolTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AutoPackageToolTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C50CC2746037FAA0EA69A064 /* libPods-AutoPackageTool.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AutoPackageTool.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E09F392246828E0D0F71358C /* libPods-AutoPackageToolUITests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AutoPackageToolUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -144,6 +150,10 @@
 				A5963739219EA4EE00CDB4EC /* AppDelegate.m */,
 				A596373B219EA4EE00CDB4EC /* ViewController.h */,
 				A596373C219EA4EE00CDB4EC /* ViewController.m */,
+				A5E833AB21ABA68C0075C8E6 /* CustomView.h */,
+				A5E833AC21ABA68C0075C8E6 /* CustomView.m */,
+				A5E833AF21ABE0F40075C8E6 /* MBProgressHUD.h */,
+				A5E833AE21ABE0F40075C8E6 /* MBProgressHUD.m */,
 				A596373E219EA4F000CDB4EC /* Assets.xcassets */,
 				A5963740219EA4F000CDB4EC /* Main.storyboard */,
 				A5963743219EA4F000CDB4EC /* Info.plist */,
@@ -369,6 +379,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A596373D219EA4EE00CDB4EC /* ViewController.m in Sources */,
+				A5E833AD21ABA68C0075C8E6 /* CustomView.m in Sources */,
+				A5E833B021ABE0F40075C8E6 /* MBProgressHUD.m in Sources */,
 				A5963745219EA4F000CDB4EC /* main.m in Sources */,
 				A596373A219EA4EE00CDB4EC /* AppDelegate.m in Sources */,
 			);
