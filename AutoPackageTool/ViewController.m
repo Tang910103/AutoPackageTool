@@ -378,7 +378,13 @@
         self.textView.layoutManager.allowsNonContiguousLayout = NO;
         NSScrollView *scrollView = [self.textView enclosingScrollView];
         bool scrollToEnd = [self.textView visibleRect].origin.y == CGRectGetHeight(self.textView.frame) - CGRectGetHeight(scrollView.frame);
-        [[[self.textView textStorage] mutableString] appendString:[NSString stringWithFormat:@"\n%@",text]];
+        NSDate *date = [NSDate date];
+        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+        [dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss.SSS"];
+        NSString *dateString = [dateFormatter stringFromDate:date];
+        NSMutableAttributedString *st = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@ %@", dateString, text]];
+        [st setAttributes:@{NSForegroundColorAttributeName:[NSColor redColor]} range:[st.string rangeOfString:dateString]];
+        [[self.textView textStorage] appendAttributedString:st];
         if (scrollToEnd) {
             [self.textView scrollRangeToVisible:NSMakeRange(self.textView.string.length, 1)];
         }
